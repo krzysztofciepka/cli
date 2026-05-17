@@ -6,6 +6,7 @@ require (
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/krzysztofciepka/selfupgrade v0.1.0
 	github.com/sahilm/fuzzy v0.1.1
 )
 
