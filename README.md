@@ -60,3 +60,17 @@ Launch with `cli`, then:
 ## Config
 
 Stars and descriptions are stored in `~/.config/cli/config.json`.
+
+## Upgrading
+
+`cli` can replace itself with the latest GitHub release (linux/amd64):
+
+```bash
+cli -upgrade    # download + verify + replace the running binary
+cli -version    # print the installed version
+```
+
+Upgrade is powered by [selfupgrade](https://github.com/krzysztofciepka/selfupgrade).
+Release builds embed the version via `-ldflags "-X main.version=<tag>"`; the
+release process must continue to publish `cli-<tag>-linux-amd64` and
+`checksums.txt` assets.
