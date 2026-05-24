@@ -42,6 +42,10 @@ func selectExecutables(execs []pathExec, explicitOwned, ownedPaths map[string]bo
 	return result
 }
 
+// cacheVersion is folded into the cache hash so that changes to the scanning
+// logic invalidate any cache written by an older binary.
+const cacheVersion = "v2"
+
 type cache struct {
 	Executables []string  `json:"executables"`
 	Hash        string    `json:"hash"`
@@ -195,19 +199,22 @@ func scanExecutables() []string {
 		return nil
 	}
 
-	if cached := loadCache(pathEnv); cached != nil {
+	hash := cacheVersion + "\x00" + pathEnv
+	if cached := loadCache(hash); cached != nil {
 		return cached
 	}
 
-	pkgs := getExplicitPackages()
-	result := getPackageExecutables(pkgs)
+	execs := scanPathEntries()
 
-	if len(result) == 0 {
-		// Fallback: scan PATH directly
-		result = scanPath()
+	explicitOwned := make(map[string]bool)
+	for _, name := range getPackageExecutables(getExplicitPackages()) {
+		explicitOwned[name] = true
 	}
+	ownedPaths := getOwnedPaths()
 
-	saveCache(result, pathEnv)
+	result := selectExecutables(execs, explicitOwned, ownedPaths)
+
+	saveCache(result, hash)
 	return result
 }
 
@@ -257,31 +264,3 @@ func scanPathEntries() []pathExec {
 	return result
 }
 
-func scanPath() []string {
-	seen := make(map[string]bool)
-	var result []string
-
-	for _, dir := range strings.Split(os.Getenv("PATH"), ":") {
-		if dir == "" {
-			continue
-		}
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			continue
-		}
-		for _, e := range entries {
-			name := e.Name()
-			if strings.HasPrefix(name, ".") || seen[name] {
-				continue
-			}
-			typ := e.Type()
-			if typ.IsRegular() || typ&os.ModeSymlink != 0 {
-				seen[name] = true
-				result = append(result, name)
-			}
-		}
-	}
-
-	sort.Strings(result)
-	return result
-}
