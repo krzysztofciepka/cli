@@ -161,6 +161,34 @@ func getPackageExecutables(pkgs map[string]bool) []string {
 	return result
 }
 
+// getOwnedPaths returns the set of file paths, owned by any installed package,
+// that live on a $PATH directory. Returns nil if pacman is unavailable. Parses
+// only paths (locale-independent).
+func getOwnedPaths() map[string]bool {
+	out, err := exec.Command("pacman", "-Qlq").Output()
+	if err != nil {
+		return nil
+	}
+
+	pathDirs := make(map[string]bool)
+	for _, dir := range strings.Split(os.Getenv("PATH"), ":") {
+		if dir != "" {
+			pathDirs[dir] = true
+		}
+	}
+
+	owned := make(map[string]bool)
+	for _, line := range strings.Split(string(out), "\n") {
+		if line == "" {
+			continue
+		}
+		if pathDirs[filepath.Dir(line)] {
+			owned[line] = true
+		}
+	}
+	return owned
+}
+
 func scanExecutables() []string {
 	pathEnv := os.Getenv("PATH")
 	if pathEnv == "" {
