@@ -10,6 +10,32 @@ import (
 	"time"
 )
 
+type pathExec struct {
+	name string
+	path string
+}
+
+// selectExecutables returns the curated, sorted, deduplicated list of
+// executable names to display. An executable is kept when its name is owned by
+// an explicitly-installed package (explicitOwned) or its path is not owned by
+// any package (ownedPaths) — i.e. a manual install. Executables owned only by
+// dependency packages are dropped. The first occurrence of a name wins.
+func selectExecutables(execs []pathExec, explicitOwned, ownedPaths map[string]bool) []string {
+	seen := make(map[string]bool)
+	var result []string
+	for _, e := range execs {
+		if seen[e.name] {
+			continue
+		}
+		seen[e.name] = true
+		if explicitOwned[e.name] || !ownedPaths[e.path] {
+			result = append(result, e.name)
+		}
+	}
+	sort.Strings(result)
+	return result
+}
+
 type cache struct {
 	Executables []string  `json:"executables"`
 	Hash        string    `json:"hash"`
