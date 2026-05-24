@@ -179,7 +179,7 @@ func getOwnedPaths() map[string]bool {
 
 	owned := make(map[string]bool)
 	for _, line := range strings.Split(string(out), "\n") {
-		if line == "" {
+		if line == "" || strings.HasSuffix(line, "/") {
 			continue
 		}
 		if pathDirs[filepath.Dir(line)] {
