@@ -263,4 +263,3 @@ func scanPathEntries() []pathExec {
 
 	return result
 }
-
