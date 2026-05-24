@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -73,5 +75,60 @@ func TestSelectExecutables(t *testing.T) {
 				t.Fatalf("got %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestScanPathEntries(t *testing.T) {
+	dirA := t.TempDir()
+	dirB := t.TempDir()
+
+	mustWrite := func(dir, name string, mode os.FileMode) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte("#!/bin/sh\n"), mode); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+
+	mustWrite(dirA, "alpha", 0o755)   // executable -> included
+	mustWrite(dirA, "notexec", 0o644) // not executable -> skipped
+	mustWrite(dirA, ".hidden", 0o755) // dotfile -> skipped
+	target := mustWrite(dirA, "linktarget", 0o755)
+	mustWrite(dirA, "dup", 0o755) // duplicate name, dirA wins
+	mustWrite(dirB, "dup", 0o755) // duplicate name, shadowed
+	mustWrite(dirB, "beta", 0o755)
+
+	link := filepath.Join(dirB, "blink") // symlink to an executable
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("PATH", dirA+":"+dirB)
+
+	byName := map[string]string{}
+	for _, e := range scanPathEntries() {
+		if _, ok := byName[e.name]; ok {
+			t.Fatalf("duplicate name in result: %s", e.name)
+		}
+		byName[e.name] = e.path
+	}
+
+	if _, ok := byName["alpha"]; !ok {
+		t.Errorf("alpha should be included")
+	}
+	if _, ok := byName["notexec"]; ok {
+		t.Errorf("notexec should be skipped (not executable)")
+	}
+	if _, ok := byName[".hidden"]; ok {
+		t.Errorf("dotfile should be skipped")
+	}
+	if _, ok := byName["blink"]; !ok {
+		t.Errorf("symlink blink should be included")
+	}
+	if _, ok := byName["beta"]; !ok {
+		t.Errorf("beta should be included")
+	}
+	if byName["dup"] != filepath.Join(dirA, "dup") {
+		t.Errorf("dup should resolve to dirA (first on PATH), got %s", byName["dup"])
 	}
 }

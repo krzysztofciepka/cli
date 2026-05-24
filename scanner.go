@@ -183,6 +183,52 @@ func scanExecutables() []string {
 	return result
 }
 
+// scanPathEntries walks $PATH and returns each executable as a name+path pair.
+// The first occurrence of a name wins (PATH order). Dotfiles and non-executable
+// entries are skipped; symlinks are followed to check the executable bit.
+func scanPathEntries() []pathExec {
+	seen := make(map[string]bool)
+	var result []pathExec
+
+	for _, dir := range strings.Split(os.Getenv("PATH"), ":") {
+		if dir == "" {
+			continue
+		}
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			name := e.Name()
+			if strings.HasPrefix(name, ".") || seen[name] {
+				continue
+			}
+			full := filepath.Join(dir, name)
+
+			typ := e.Type()
+			switch {
+			case typ.IsRegular():
+				info, err := e.Info()
+				if err != nil || info.Mode().Perm()&0o111 == 0 {
+					continue
+				}
+			case typ&os.ModeSymlink != 0:
+				info, err := os.Stat(full) // follow the link
+				if err != nil || info.IsDir() || info.Mode().Perm()&0o111 == 0 {
+					continue
+				}
+			default:
+				continue
+			}
+
+			seen[name] = true
+			result = append(result, pathExec{name: name, path: full})
+		}
+	}
+
+	return result
+}
+
 func scanPath() []string {
 	seen := make(map[string]bool)
 	var result []string
