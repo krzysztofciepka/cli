@@ -19,7 +19,13 @@ type pathExec struct {
 // executable names to display. An executable is kept when its name is owned by
 // an explicitly-installed package (explicitOwned) or its path is not owned by
 // any package (ownedPaths) — i.e. a manual install. Executables owned only by
-// dependency packages are dropped. The first occurrence of a name wins.
+// dependency packages are dropped.
+//
+// execs must be in $PATH order: the first occurrence of a name is the one that
+// would actually run, so the keep/drop decision is made on that occurrence and
+// later duplicates of the same name are ignored — even when the first
+// occurrence was dropped (a shadowed manual copy is unreachable by bare name,
+// so surfacing it would be misleading).
 func selectExecutables(execs []pathExec, explicitOwned, ownedPaths map[string]bool) []string {
 	seen := make(map[string]bool)
 	var result []string

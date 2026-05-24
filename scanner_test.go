@@ -45,6 +45,16 @@ func TestSelectExecutables(t *testing.T) {
 			want:          []string{"foo"},
 		},
 		{
+			name: "dependency first shadows later manual copy (dropped)",
+			execs: []pathExec{
+				{name: "foo", path: "/usr/bin/foo"},
+				{name: "foo", path: "/home/u/.local/bin/foo"},
+			},
+			explicitOwned: map[string]bool{},
+			ownedPaths:    map[string]bool{"/usr/bin/foo": true},
+			want:          nil,
+		},
+		{
 			name: "no pacman keeps everything, sorted",
 			execs: []pathExec{
 				{name: "zeta", path: "/usr/bin/zeta"},
